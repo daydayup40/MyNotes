@@ -1,0 +1,75 @@
+### 驱动编程
+
+书籍：
+[linux设备驱动](https://www.kancloud.cn/kancloud/ldd3)
+
+动态分配设备号
+```c
+int alloc_chrdev_region(dev_t *dev, unsigned int firstminor, unsigned int count, char *name);
+```
+
+dev是传出参数，为动态获得的设备号；firstminor指定第一个minor；count和name同register_chrdev_region的参数定义。
+[http://nanxiao.me/linux-kernel-note-20-device-major-minor-number/]()
+
+静态初始化字符设备：
+```c
+struct cdev my_cdev;
+
+cdev_init(&my_cdev, &fops);
+
+my_cdev.owner = THIS_MODULE;
+```
+[ Linux字符设备驱动之cdev_init()系列 ](http://blog.csdn.net/tigerjibo/article/details/6412613)
+
+class相关api
+![ ](http://images.cnitblog.com/blog/497634/201305/15222645-cd23dedafac144bbbb027aa4bc5c79b8.jpg  "class相关api")
+
+[class_create和class_register](http://www.cnblogs.com/skywang12345/archive/2013/05/15/driver_class.html)
+
+### qemu 启动虚拟系统
+
+rootfs.cpio是先cpio打包再gzip压缩
+
+解压要先把rootfs.cpio改成gz后缀再解压，否则会报错。
+
+### Mitigration
+
+kaslr 可通过`cat /proc/cmdline`来查看，选项若有kaslr则是开启，一般内核默认不开启。
+
+### linux调试内核
+
+qemu可以直接加参数`-gdb tcp::23333`,但是要注意gdb连接server时候会出错，所以要用`set architecture i386:x86-64`指定构架然后`target remote :23333`连接。
+
+参考：[https://stackoverflow.com/questions/8662468/remote-g-packet-reply-is-too-long]()
+
+### 制作cpio，initramfs文件系统
+
+需要两个工具，一个是进入内核源码编译的：
+`make -C /usr/src/linux/usr/ gen_init_cpio`
+一个是内核源码目录script下的`chmod +x usr/gen_init_cpio scripts/gen_initramfs_list.sh `
+
+然后通过以下命令创建initramfs文件系统：
+
+```shell
+gen_initramfs_list.sh initrd/ > filelist
+gen_init_cpio filelist >initrd.img
+gzip initrd.img
+mv initrd.img initrd-`uname –r`.img
+```
+
+### 关于cred结构
+
+默认编译的cred前5个字段为:
+```c
+struct cred {
+	unsigned long usage;
+	unsigned int uid;
+	unsigned int gid;
+	unsigned int suid;
+	unsigned int sgid;
+	unsigned int euid;
+	...
+};
+```
+
+测试要把这些字段全部清零才能获得root权限,usage字段是跟bit有关的，32位下是`unsigned int`，在64位下，默认设置的cred结构是0xa8字节大小
