@@ -1,2 +1,1 @@
-# bbbblog
-emmmm,my blog : )
+My notes & articles
